@@ -3,87 +3,55 @@ import pandas as pd
 import pickle
 import numpy as np
 
-# Page configuration
-st.set_page_config(page_title="Health Predictor", page_icon="🩺", layout="centered")
+# Page configuration - Standard and stable
+st.set_page_config(page_title="Diabetes Predictor", page_icon="🩺")
 
-# Custom CSS for a centered, attractive interface
-st.markdown("""
-    <style>
-    .main {
-        background-color: #f0f2f6;
-    }
-    .stButton>button {
-        width: 100%;
-        border-radius: 10px;
-        height: 3em;
-        background-color: #4CAF50;
-        color: white;
-        font-weight: bold;
-    }
-    .centered-icon {
-        display: flex;
-        justify-content: center;
-        font-size: 70px;
-        margin-bottom: 10px;
-    }
-    .report-card {
-        background-color: white;
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    </style>
-    """, unsafe_html=True)
-
-# Function to load the model
+# Load the model with error handling
 @st.cache_resource
 def load_model():
-    with open('model.pkl', 'rb') as f:
-        return pickle.load(f)
+    try:
+        with open('model.pkl', 'rb') as f:
+            return pickle.load(f)
+    except FileNotFoundError:
+        st.error("Model file 'model.pkl' not found. Please ensure it is in the same folder.")
+        return None
 
 model = load_model()
 
-# Header Section
-st.markdown('<div class="centered-icon">🩺</div>', unsafe_html=True)
-st.markdown("<h1 style='text-align: center;'>Diabetes Risk Assessment</h1>", unsafe_html=True)
-st.markdown("<p style='text-align: center; color: gray;'>Enter patient details below to predict health risk.</p>", unsafe_html=True)
+# Centered Header using standard Markdown
+st.markdown("<h1 style='text-align: center;'>🩺 Health Diagnostic Tool</h1>", unsafe_html=True)
+st.write("---")
 
-st.divider()
-
-# Input Form
-with st.container():
+if model:
+    # Creating two columns for a balanced UI
     col1, col2 = st.columns(2)
-    
+
     with col1:
-        pregnancies = st.number_input("Pregnancies", min_value=0, step=1, value=1)
+        pregnancies = st.number_input("Pregnancies", min_value=0, step=1, value=0)
         glucose = st.slider("Glucose Level", 0, 200, 100)
-        blood_pressure = st.slider("Blood Pressure (mm Hg)", 0, 140, 70)
-        skin_thickness = st.slider("Skin Thickness (mm)", 0, 100, 20)
+        blood_pressure = st.slider("Blood Pressure", 0, 140, 70)
+        skin_thickness = st.slider("Skin Thickness", 0, 100, 20)
 
     with col2:
-        insulin = st.number_input("Insulin Level (mu U/ml)", min_value=0, value=80)
-        bmi = st.number_input("BMI (Body Mass Index)", format="%.1f", value=25.0)
-        dpf = st.number_input("Diabetes Pedigree Function", format="%.3f", value=0.470)
-        age = st.number_input("Age (Years)", min_value=1, step=1, value=30)
+        insulin = st.number_input("Insulin", min_value=0, value=0)
+        bmi = st.number_input("BMI", format="%.1f", value=25.0)
+        dpf = st.number_input("Diabetes Pedigree Function", format="%.3f", value=0.5)
+        age = st.number_input("Age", min_value=1, max_value=120, value=25)
 
-st.write("") # Spacer
+    st.write("---")
 
-# Prediction Logic
-if st.button("Analyze Results"):
-    # Features must be in the exact order the model expects
-    input_data = np.array([[pregnancies, glucose, blood_pressure, skin_thickness, 
-                            insulin, bmi, dpf, age]])
-    
-    prediction = model.predict(input_data)
-    probability = model.predict_proba(input_data)
-
-    st.divider()
-    
-    if prediction[0] == 1:
-        st.error(f"### High Risk Detected")
-        st.write(f"The model predicts a high probability of diabetes with **{probability[0][1]*100:.1f}%** confidence.")
-    else:
-        st.success(f"### Low Risk Detected")
-        st.write(f"The model predicts a low probability of diabetes with **{probability[0][0]*100:.1f}%** confidence.")
-
-    st.warning("Disclaimer: This tool is for educational purposes and is not a substitute for professional medical diagnosis.")
+    # Centered Button
+    if st.button("Predict Results", use_container_width=True):
+        # Arrange features for the KNN model
+        features = np.array([[pregnancies, glucose, blood_pressure, skin_thickness, 
+                              insulin, bmi, dpf, age]])
+        
+        prediction = model.predict(features)
+        
+        # Display Result
+        if prediction[0] == 1:
+            st.error("### Prediction: High Risk of Diabetes")
+        else:
+            st.success("### Prediction: Low Risk of Diabetes")
+            
+        st.info("This is an AI prediction. Please consult a doctor for official medical advice.")
