@@ -2,93 +2,88 @@ import streamlit as st
 import pandas as pd
 import pickle
 import numpy as np
-from streamlit_lottie import st_lottie
-import requests
 
-# Page Configuration
-st.set_page_config(page_title="Health Diagnostic Assistant", layout="wide")
+# Page configuration
+st.set_page_config(page_title="Health Predictor", page_icon="🩺", layout="centered")
 
-# Custom CSS for Animation and Styling
+# Custom CSS for a centered, attractive interface
 st.markdown("""
     <style>
     .main {
-        background-color: #f5f7f9;
+        background-color: #f0f2f6;
     }
     .stButton>button {
         width: 100%;
-        border-radius: 20px;
+        border-radius: 10px;
         height: 3em;
-        background-color: #007bff;
+        background-color: #4CAF50;
         color: white;
-        transition: all 0.3s ease;
+        font-weight: bold;
     }
-    .stButton>button:hover {
-        background-color: #0056b3;
-        transform: scale(1.02);
+    .centered-icon {
+        display: flex;
+        justify-content: center;
+        font-size: 70px;
+        margin-bottom: 10px;
     }
-    .result-card {
-        padding: 20px;
+    .report-card {
+        background-color: white;
+        padding: 30px;
         border-radius: 15px;
-        text-align: center;
-        animation: fadeIn 1.5s;
-    }
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     </style>
     """, unsafe_html=True)
 
-def load_lottieurl(url):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
+# Function to load the model
+@st.cache_resource
+def load_model():
+    with open('model.pkl', 'rb') as f:
+        return pickle.load(f)
 
-# Load Assets
-lottie_health = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_5njp3v83.json")
-model = pickle.load(open('model (1).pkl', 'rb'))
+model = load_model()
 
-# App Layout
-st.title("🩺 Diabetes Risk Predictor")
-st.write("Enter the patient's clinical metrics in the sidebar to get a prediction.")
+# Header Section
+st.markdown('<div class="centered-icon">🩺</div>', unsafe_html=True)
+st.markdown("<h1 style='text-align: center;'>Diabetes Risk Assessment</h1>", unsafe_html=True)
+st.markdown("<p style='text-align: center; color: gray;'>Enter patient details below to predict health risk.</p>", unsafe_html=True)
 
-with st.sidebar:
-    st.header("Patient Data Input")
-    st_lottie(lottie_health, height=150, key="health_icon")
-    
-    pregnancies = st.number_input("Pregnancies", min_value=0, step=1)
-    glucose = st.slider("Glucose Level", 0, 200, 100)
-    blood_pressure = st.slider("Blood Pressure (mm Hg)", 0, 140, 70)
-    skin_thickness = st.slider("Skin Thickness (mm)", 0, 100, 20)
-    insulin = st.number_input("Insulin Level", min_value=0)
-    bmi = st.number_input("BMI", format="%.1f")
-    dpf = st.number_input("Diabetes Pedigree Function", format="%.3f")
-    age = st.number_input("Age", min_value=1, step=1)
+st.divider()
 
-# Prediction Logic
-if st.button("Generate Diagnostic Report"):
-    # Prepare features in the exact order the model was trained
-    features = np.array([[pregnancies, glucose, blood_pressure, skin_thickness, 
-                          insulin, bmi, dpf, age]])
-    
-    prediction = model.predict(features)
-    probability = model.predict_proba(features)
-
-    st.divider()
-    
+# Input Form
+with st.container():
     col1, col2 = st.columns(2)
     
     with col1:
-        if prediction[0] == 1:
-            st.error("### Prediction: High Risk")
-            st.write("The model suggests a high likelihood of diabetes.")
-        else:
-            st.success("### Prediction: Low Risk")
-            st.write("The model suggests a low likelihood of diabetes.")
-            
-    with col2:
-        st.metric(label="Confidence Level", value=f"{max(probability[0])*100:.2f}%")
-        st.progress(max(probability[0]))
+        pregnancies = st.number_input("Pregnancies", min_value=0, step=1, value=1)
+        glucose = st.slider("Glucose Level", 0, 200, 100)
+        blood_pressure = st.slider("Blood Pressure (mm Hg)", 0, 140, 70)
+        skin_thickness = st.slider("Skin Thickness (mm)", 0, 100, 20)
 
-    st.info("**Note:** This is a machine learning prediction and should not replace professional medical advice.")
+    with col2:
+        insulin = st.number_input("Insulin Level (mu U/ml)", min_value=0, value=80)
+        bmi = st.number_input("BMI (Body Mass Index)", format="%.1f", value=25.0)
+        dpf = st.number_input("Diabetes Pedigree Function", format="%.3f", value=0.470)
+        age = st.number_input("Age (Years)", min_value=1, step=1, value=30)
+
+st.write("") # Spacer
+
+# Prediction Logic
+if st.button("Analyze Results"):
+    # Features must be in the exact order the model expects
+    input_data = np.array([[pregnancies, glucose, blood_pressure, skin_thickness, 
+                            insulin, bmi, dpf, age]])
+    
+    prediction = model.predict(input_data)
+    probability = model.predict_proba(input_data)
+
+    st.divider()
+    
+    if prediction[0] == 1:
+        st.error(f"### High Risk Detected")
+        st.write(f"The model predicts a high probability of diabetes with **{probability[0][1]*100:.1f}%** confidence.")
+    else:
+        st.success(f"### Low Risk Detected")
+        st.write(f"The model predicts a low probability of diabetes with **{probability[0][0]*100:.1f}%** confidence.")
+
+    st.warning("Disclaimer: This tool is for educational purposes and is not a substitute for professional medical diagnosis.")
